@@ -1,22 +1,19 @@
 class DNAStorage:
     def __init__(self, max_homopolymer=2):
 
-        # Define transition rules to prevent homopolymers and control nucleotide usage
-        # When the last two nucleotides are the same, use these rules
         self.transition_rule_double = {
-            'A': ['C', 'G', 'T'],  # Exclude 'A' to prevent 'AAA'
-            'C': ['A', 'T'],       # Exclude 'C' to prevent 'CCC'
-            'G': ['A', 'T'],       # Exclude 'G' to prevent 'GGG'
-            'T': ['A', 'C', 'G'],  # Exclude 'T' to prevent 'TTT'
+            'A': ['C', 'G', 'T'],
+            'C': ['A', 'T'],
+            'G': ['A', 'T'],
+            'T': ['A', 'C', 'G'],
         }
 
-        # When the last two nucleotides are not the same, use these rules
         self.transition_rules = {
-            'A': ['A', 'C', 'G', 'T'],    # All nucleotides can follow 'A'
-            'C': ['A', 'T'],              # Reduce 'G' and 'C' after 'C'
-            'G': ['A', 'T'],              # Reduce 'G' and 'C' after 'G'
-            'T': ['A', 'C', 'G', 'T'],    # All nucleotides can follow 'T'
-            '': ['A', 'C', 'G', 'T']      # For the first nucleotide
+            'A': ['A', 'C', 'G', 'T'],
+            'C': ['A', 'T'],
+            'G': ['A', 'T'],
+            'T': ['A', 'C', 'G', 'T'],
+            '': ['A', 'C', 'G', 'T']
         }
 
     def string_to_binary(self, text):
@@ -24,14 +21,13 @@ class DNAStorage:
         return binary
 
     def binary_to_string(self, binary):
-        # If the binary string length isn't a multiple of 8, pad it with zeros on the right
         if len(binary) % 8 != 0:
             binary = binary.ljust(len(binary) + (8 - len(binary) % 8), '0')
 
         text = ''
         for i in range(0, len(binary), 8):
-            byte = binary[i:i + 8]     # Extract 8 bits
-            text += chr(int(byte, 2))  # Convert to character and append
+            byte = binary[i:i + 8]
+            text += chr(int(byte, 2))
         return text
 
     def binary_to_dna(self, binary):
@@ -39,37 +35,28 @@ class DNAStorage:
         dna = ''
         prev_nucleotide = ''
         i = 0
-        # Process the binary string until all bits are converted
         while i < len(binary):
-            # Determine which transition rules to use based on the last two nucleotides
             if len(dna) >= 2 and dna[-1] == dna[-2]:
-                # Last two nucleotides are the same; use transition_rule_double
                 possible_nucleotides = self.transition_rule_double[prev_nucleotide]
             else:
-                # Use regular transition_rules
                 possible_nucleotides = self.transition_rules[prev_nucleotide]
 
-            # Get the number of possible nucleotides for the current position (could be 2 or 4)
             num_nucleotides = len(possible_nucleotides)
 
-            # Determine the number of bits to process based on available nucleotides
             if num_nucleotides == 4:
                 bits_to_process = 2
             elif num_nucleotides >= 2:
                 bits_to_process = 1
 
             bits = binary[i:i + bits_to_process]
-            # If there aren't enough bits left, pad with zeros on the right
             if len(bits) < bits_to_process:
                 bits = bits.ljust(bits_to_process, '0')
 
             index = int(bits, 2)
 
-            # Ensure the index is within the range of possible nucleotides
             if index >= num_nucleotides:
-                index = index % num_nucleotides  # Wrap around using modulo
+                index = index % num_nucleotides
 
-            # Select the nucleotide corresponding to the index
             nucleotide = possible_nucleotides[index]
             dna += nucleotide
             prev_nucleotide = nucleotide
@@ -95,25 +82,36 @@ class DNAStorage:
             elif num_nucleotides >= 2:
                 bits_to_process = 1
 
-
             index = possible_nucleotides.index(nucleotide)
 
-            # Convert the index back to a binary format string with leading zeros
             bits = format(index, f'0{bits_to_process}b')
-            # Append the bits to the binary string
             binary += bits
             prev_nucleotide = nucleotide
             i += 1
         return binary
 
-    def encode(self, text):
+    def encode(self, text, copies=4):
         binary = self.string_to_binary(text)
         dna = self.binary_to_dna(binary)
-        return dna
+        prefix_separator = 'ATGC'
+        suffix_separator = 'GCTA'
+        final_sequence = (prefix_separator + dna + suffix_separator) * copies
+        return final_sequence
 
     def decode(self, dna_sequence):
+        copies = []
+        sequences = dna_sequence.split('ATGC')
+        for seq in sequences:
+            if seq:
+                seq = seq.split('GCTA')[0]
+                if seq:
+                    copies.append(seq)
+        if not copies:
+            return ""
+        most_common = max(set(copies), key=copies.count)
+        # most common sequence in case of loss
         try:
-            binary = self.dna_to_binary(dna_sequence)
+            binary = self.dna_to_binary(most_common)
             text = self.binary_to_string(binary)
             return text
         except ValueError as e:
@@ -151,7 +149,7 @@ def main():
     original_text = "Hello! This is a test. Thank you."
     print(f"Original text: {original_text}\n")
 
-    encoded_dna = dna_storage.encode(original_text)
+    encoded_dna = dna_storage.encode(original_text, copies=4)
     print(f"Encoded DNA:\n{encoded_dna}\n")
 
     dna_storage.analyze_dna(encoded_dna)
